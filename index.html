@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>真食呈現</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="./style.css">
+  <script src="http://140.112.21.12:7070/database/infos.js"></script>
+  <script>
+    var cities = []
+    let keys = Object.keys(infos)
+    for (let i = 0; i < keys.length; i++) {
+      let city = infos[keys[i]].city;
+      if (city && cities.indexOf(city) == -1) {
+        cities.push(city);
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <div id="googleMap" style="width:100%;height:400px;"></div>
+  <div class="w3-content w3-padding">
+    <div class="w3-container">
+      <h1 id="search-by-logno">Search by Logno</h1>
+      <div class="w3-row-padding">
+        <div style="max-width: 600px; margin: auto;">
+          <ul class="w3-ul w3-white w3-center">
+            <div>
+              <input class="w3-input" type="number" placeholder="Logno" id="logno">
+              <button style="font-size: 18px;" class="w3-btn w3-round-xlarge w3-blue w3-section" onclick="find_logno()">
+                Search
+              </button>
+            </div>
+            <li class="w3-padding-24">
+              <table class="w3-table-all w3-card-4" style="display: block; border: 0px;">
+                <tbody>
+                  <tr>
+                    <th>網頁連結</th>
+                    <th>產品名稱</th>
+                    <th>產出組織</th>
+                    <th>產出日期</th>
+                    <th>有效日期</th>
+                    <th>產出數量</th>
+                    <th>剩餘數量</th>
+                  </tr>
+                  <tr id="product_info"></tr>
+                </tbody>
+              </table>
+              <div id="processes"></div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div id="block_infos"></div>
+    <div class="w3-content w3-padding">
+      <div class="w3-container">
+        <h1 id='location' style="margin-top: 50px;">Lognos from a location</h1>
+        <div class="w3-row-padding">
+          <div style="max-width: 800px; margin: auto;">
+            <ul class="w3-ul w3-white w3-center">
+              <div style="margin-top: 15px; display: block;">
+                <form>
+                  <span>
+                    <select id="selected" class="dropdown" style="font-size: 22px; width: 200px;">
+                    </select>
+                  </span>
+                </form>
+              </div>
+              <button style="font-size: 18px; display: block; margin: auto;"
+                class="w3-btn w3-round-xlarge w3-blue w3-section" onclick="logno_finder()">
+                Search
+              </button>
+              <p id="result_oid"></p>
+              <div style="margin-bottom: 100px;"></div>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="text/javascript">
+      let innerHTML = ""
+      for (let i = 0; i < cities.length; i++) {
+        let option = `
+          <option value=${cities[i]}>${cities[i]}</option>
+        `
+        innerHTML += option
+      }
+      document.getElementById('selected').innerHTML = innerHTML
+
+      let map;
+      let markers = [];
+      function myMap() {
+        var mapProp = {
+          center: new google.maps.LatLng(25.01948243610034, 121.54154824925479),
+          zoom: 6,
+        };
+        map = new google.maps.Map(document.getElementById("googleMap"), mapProp);
+        markers.push(new google.maps.Marker({
+          position: { lat: 25.01948243610034, lng: 121.54154824925479 },
+          map,
+          title: "Test",
+        }));
+      }
+
+      function find_logno() {
+        let a = document.getElementById("logno").value;
+        let info = infos[a]
+
+        if (! info) {
+          alert(`${a} is not a valid logno.`)
+        }
+
+        for (let i = 0; i < markers.length; i++) {
+          markers[i].setMap(null);
+        }
+        markers = []
+
+        let locations = eval(`[${info.gps}]`.replaceAll("(", "[").replaceAll(")", "]"))
+        for (let i = 0; i < locations.length; i++) {
+          markers.push(new google.maps.Marker({
+            position: { lat: locations[i][0], lng: locations[i][1] },
+            map: map,
+          }));
+        }
+        map.setCenter(markers[0].getPosition())
+        map.setZoom(17)
+
+        let url = a ? `<a target="_blank" href=https://fc.efoodex.net/portal.php?oid=${a}&m=1><strong>LINK</strong></a>` : undefined;
+        let product_info = [url, info.name, info.organization, info.produced_date, info.valid_date, info.produced_amount, info.remained_amount];
+        let innerHTML = ""
+        for (let i = 0; i < product_info.length; i++) {
+          innerHTML += product_info[i] ? `<td>${product_info[i]}</td>` : "<td>N/A</td>"
+        }
+        document.getElementById("product_info").innerHTML = innerHTML;
+
+        let processes_string = ""
+        let trans = info.Transaction.split(",")
+        for (let i = 0; i < trans.length; i++) {
+          processes_string += `<p class="trans">${trans[i]}<p>`
+        }
+        innerHTML = `
+          <h3 id="process_num">There are ${info.n} processes</h3>
+          ${processes_string}
+        `
+        document.getElementById("processes").innerHTML = innerHTML;
+
+        function build_block_info_string(block) {
+          return `
+            <div class="w3-card" style="padding: 10px 20px; width: 800px; margin: 10px auto;">
+              <div style="margin: auto;">
+                <div style="margin: 10px auto">
+                  <span><strong>Address:</span></strong>
+                  <span>${block.address}</span>
+                </div>
+                <div style="margin: 10px auto">
+                  <span><strong>BlockHash:</span></strong>
+                  <span>${block.blockHash}</span>
+                </div>
+                <div style="margin: 10px auto">
+                  <span><strong>BlockNumber:</span></strong>
+                  <span>${block.blockNumber}</span>
+                </div>
+                <div style="margin: 10px auto">
+                  <span><strong>TransactionHash:</span></strong>
+                  <span>${block.transactionHash}</span>
+                </div>
+              </div>
+            </div>
+          `
+        }
+
+        function build_section_info_string(section_name, blocks) {
+          string = `
+            <h4 style="text-align: center; margin: 20px auto">${section_name}</h4>
+          `
+          for (let i = 0; i < blocks.length; i++) {
+            string += build_block_info_string(blocks[i])
+          }
+          return string
+        }
+
+        let request = new XMLHttpRequest();
+        request.open("GET", `http://140.112.21.12:8080/${a}`);
+        request.send();
+        request.onload = () => {
+          block_info = JSON.parse(request.response)
+          console.log(block_info)
+
+          string = ""
+          names = ['FoodItem', 'FoodContent', 'FoodImage', 'FoodSection']
+          for (let i = 0; i < names.length; i++) {
+            console.log(block_info[i].length)
+            if (block_info[i].length > 0) {
+              string += build_section_info_string(names[i], block_info[i])
+            }
+          }
+          if (string.length > 0) {
+            string = `<h3 style="text-align: center; font-weight: 900; margin-top: 5px">Events</h3>` + string
+          }
+
+          place = document.getElementById("block_infos")
+          place.innerHTML = string
+        }
+      }
+
+      function search_logno(logno) {
+        let logno_place = document.getElementById("logno");
+        logno_place.value = logno;
+        document.body.scrollTop = 0;
+        document.documentElement.scrollTop = 0;
+        find_logno();
+      }
+
+      function logno_finder() {
+        let target_city = document.getElementById('selected').value;
+
+        let records = []
+        let keys = Object.keys(infos)
+        for (let i = 0; i < keys.length; i++) {
+          if (infos[keys[i]].city == target_city) {
+            records.push(keys[i])
+          }
+        }
+
+        if (records.length > 0) {
+          innerHTML = `<h3 id="found-lognos-title">There are ${records.length} lognos</h3><div class="found-lognos">`
+          for (let i = 0; i < records.length; i++) {
+            let oid = records[i]
+            innerHTML += `<span class="found-logno-wrapper"><span class="found-logno" onclick="search_logno(${oid})">${oid}</span></span>`
+          }
+          innerHTML += "</div>"
+        }
+        else {
+          innerHTML = "<h3>No lognos found</h3>"
+        }
+        document.getElementById("result_oid").innerHTML = innerHTML;
+        return;
+      }
+    </script>
+
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBmJmFVNPj3LVyinePAfCzWBGESpQzy0Bg&callback=myMap"></script>
+  </div>
+</body>
+
+</html>
